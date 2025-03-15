@@ -1,0 +1,14 @@
+-- +goose Up
+-- +goose StatementBegin
+CREATE TABLE {{.Entity.Name | lower}} (
+    id uuid primary key,
+{{- range .Entity.Fields}}
+	{{.Name | snake}} {{.PostgresType}},
+{{- end}}
+);
+-- +goose StatementEnd
+
+-- +goose Down
+-- +goose StatementBegin
+DROP TABLE {{.Entity.Name | lower}};
+-- +goose StatementEnd

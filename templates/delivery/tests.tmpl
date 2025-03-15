@@ -1,0 +1,229 @@
+package delivery
+
+import (
+	"bytes"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/labstack/echo/v4"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
+	"{{.ModuleName}}/internal/{{.LowerEntityName}}/domain"
+	"{{.ModuleName}}/internal/{{.LowerEntityName}}/usecase/mock"
+)
+
+func Test{{.Entity.Name}}Delivery_Create{{.Entity.Name}}(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockUseCase := mock.NewMock{{.Entity.Name}}UseCaseInterface(ctrl)
+	e := echo.New()
+	delivery := New{{.Entity.Name}}Delivery(e, mockUseCase)
+
+	req := Create{{.Entity.Name}}Request{
+		{{- range .Entity.Fields}}
+		{{.Name}}: {{.DefaultGoValue}},
+		{{- end}}
+	}
+
+	expectedResponse := &domain.{{.Entity.Name}}{
+		ID: uuid.New(),
+		{{- range .Entity.Fields}}
+		{{.Name}}: req.{{.Name}},
+		{{- end}}
+	}
+
+	mockUseCase.EXPECT().
+		Create{{.Entity.Name}}(gomock.Any(), gomock.Any()).
+		Return(expectedResponse, nil)
+
+	jsonBytes, err := json.Marshal(req)
+	require.NoError(t, err)
+
+	rec := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/{{.LowerEntityName}}", bytes.NewReader(jsonBytes))
+	request.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	c := e.NewContext(request, rec)
+
+	err = delivery.Create{{.Entity.Name}}(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusCreated, rec.Code)
+
+	var response {{.Entity.Name}}Response
+	err = json.Unmarshal(rec.Body.Bytes(), &response)
+	require.NoError(t, err)
+	assert.Equal(t, expectedResponse.ID, response.ID)
+	{{- range .Entity.Fields}}
+	assert.Equal(t, expectedResponse.{{.Name}}{{if eq .Type "time" }}.Unix(){{end}}, response.{{.Name}}{{if eq .Type "time" }}.Unix(){{end}})
+	{{- end}}
+}
+
+func Test{{.Entity.Name}}Delivery_Update{{.Entity.Name}}(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockUseCase := mock.NewMock{{.Entity.Name}}UseCaseInterface(ctrl)
+	e := echo.New()
+	delivery := New{{.Entity.Name}}Delivery(e, mockUseCase)
+
+	id := uuid.New()
+	req := Update{{.Entity.Name}}Request{
+		ID: id,
+		{{- range .Entity.Fields}}
+		{{.Name}}: {{.DefaultGoValue}},
+		{{- end}}
+	}
+
+	expectedResponse := &domain.{{.Entity.Name}}{
+		ID: id,
+		{{- range .Entity.Fields}}
+		{{.Name}}: req.{{.Name}},
+		{{- end}}
+	}
+
+	mockUseCase.EXPECT().
+		Update{{.Entity.Name}}(gomock.Any(), gomock.Any()).
+		Return(expectedResponse, nil)
+
+	jsonBytes, err := json.Marshal(req)
+	require.NoError(t, err)
+
+	rec := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPut, "/{{.LowerEntityName}}", bytes.NewReader(jsonBytes))
+	request.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	c := e.NewContext(request, rec)
+
+	err = delivery.Update{{.Entity.Name}}(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var response {{.Entity.Name}}Response
+	err = json.Unmarshal(rec.Body.Bytes(), &response)
+	require.NoError(t, err)
+	assert.Equal(t, expectedResponse.ID, response.ID)
+	{{- range .Entity.Fields}}
+	assert.Equal(t, expectedResponse.{{.Name}}{{if eq .Type "time" }}.Unix(){{end}}, response.{{.Name}}{{if eq .Type "time" }}.Unix(){{end}})
+	{{- end}}
+}
+
+func Test{{.Entity.Name}}Delivery_Read{{.Entity.Name}}(t *testing.T) {
+    ctrl := gomock.NewController(t)
+    defer ctrl.Finish()
+
+	e := echo.New()
+
+    mockUseCase := mock.NewMock{{.Entity.Name}}UseCaseInterface(ctrl)
+    delivery := New{{.Entity.Name}}Delivery(e, mockUseCase)
+
+    id := uuid.New()
+    expectedResponse := &domain.{{.Entity.Name}}{
+        ID: id,
+    }
+
+    req := Read{{.Entity.Name}}Request{
+        ID: id,
+    }
+
+    jsonBytes, err := json.Marshal(req)
+    require.NoError(t, err)
+
+    mockUseCase.EXPECT().
+        Read{{.Entity.Name}}(gomock.Any(), id).
+        Return(expectedResponse, nil)
+
+    rec := httptest.NewRecorder()
+    request := httptest.NewRequest(http.MethodGet, "/{{.LowerName}}", bytes.NewReader(jsonBytes))
+    request.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+    c := e.NewContext(request, rec)
+
+    err = delivery.Read{{.Entity.Name}}(c)
+    assert.NoError(t, err)
+
+    var response domain.{{.Entity.Name}}
+    err = json.NewDecoder(rec.Body).Decode(&response)
+    require.NoError(t, err)
+
+    assert.Equal(t, expectedResponse.ID, response.ID)
+}
+
+func Test{{.Entity.Name}}Delivery_List{{.Entity.Name}}(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockUseCase := mock.NewMock{{.Entity.Name}}UseCaseInterface(ctrl)
+	e := echo.New()
+	delivery := New{{.Entity.Name}}Delivery(e, mockUseCase)
+
+	req := List{{.Entity.Name}}Request{
+		{{.OwnerField.Name}}: {{.OwnerField.DefaultGoValue}},
+	}
+
+	jsonBytes, err := json.Marshal(req)
+    require.NoError(t, err)
+
+	expectedResponse := []*domain.{{.Entity.Name}}{
+		{
+			ID: uuid.New(),
+			{{- range .Entity.Fields}}
+			{{.Name}}: {{.DefaultGoValue}},
+			{{- end}}
+		},
+	}
+
+	mockUseCase.EXPECT().
+		List{{.Entity.Name}}(gomock.Any(), req.{{.OwnerField.Name}}).
+		Return(expectedResponse, nil)
+
+	rec := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/{{.LowerEntityName}}", bytes.NewReader(jsonBytes))
+	request.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	c := e.NewContext(request, rec)
+
+	err = delivery.List{{.Entity.Name}}(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var response []*{{.Entity.Name}}Response
+	err = json.Unmarshal(rec.Body.Bytes(), &response)
+	require.NoError(t, err)
+	assert.Len(t, response, len(expectedResponse))
+	assert.Equal(t, expectedResponse[0].ID, response[0].ID)
+	{{- range .Entity.Fields}}
+	assert.Equal(t, expectedResponse[0].{{.Name}}{{if eq .Type "time" }}.Unix(){{end}}, response[0].{{.Name}}{{if eq .Type "time" }}.Unix(){{end}})
+	{{- end}}
+}
+
+func Test{{.Entity.Name}}Delivery_Delete{{.Entity.Name}}(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockUseCase := mock.NewMock{{.Entity.Name}}UseCaseInterface(ctrl)
+	e := echo.New()
+	delivery := New{{.Entity.Name}}Delivery(e, mockUseCase)
+
+	req := Delete{{.Entity.Name}}Request{
+		ID: uuid.New(),
+	}
+
+	jsonBytes, err := json.Marshal(req)
+    require.NoError(t, err)
+
+	mockUseCase.EXPECT().
+		Delete{{.Entity.Name}}(gomock.Any(), req.ID).
+		Return(nil)
+
+	rec := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodDelete, "/{{.LowerEntityName}}", bytes.NewReader(jsonBytes))
+	request.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	c := e.NewContext(request, rec)
+
+
+	err = delivery.Delete{{.Entity.Name}}(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusNoContent, rec.Code)
+}

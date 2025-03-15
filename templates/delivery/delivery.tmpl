@@ -1,0 +1,230 @@
+package delivery
+
+import (
+	"context"
+	"net/http"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/labstack/echo/v4"
+	"{{.ModuleName}}/internal/{{.LowerEntityName}}/usecase"
+	"{{.ModuleName}}/internal/{{.LowerEntityName}}/domain"
+)
+
+// Структуры Request для каждого метода
+
+// Create{{.Entity.Name}}Request - структура запроса для создания сущности
+type Create{{.Entity.Name}}Request struct {
+	{{- range .Entity.Fields}}
+	{{.Name}} {{.GoType}} `json:"{{.Name | snake}}"`
+	{{- end}}
+}
+
+// Update{{.Entity.Name}}Request - структура запроса для обновления сущности
+type Update{{.Entity.Name}}Request struct {
+	ID uuid.UUID `json:"id"`
+	{{- range .Entity.Fields}}
+	{{.Name}} {{.GoType}} `json:"{{.Name | snake}}"`
+	{{- end}}
+}
+
+// List{{.Entity.Name}}Request - структура запроса для получения списка сущностей
+type List{{.Entity.Name}}Request struct {
+	{{.OwnerField.Name}} {{.OwnerField.GoType}} `json:"{{.OwnerField.Name}}"`
+}
+
+// Read{{.Entity.Name}}Request - структура запроса для получения сущности по ID
+type Read{{.Entity.Name}}Request struct {
+	ID uuid.UUID `json:"id"`
+}
+
+// Delete{{.Entity.Name}}Request - структура запроса для удаления сущности по ID
+type Delete{{.Entity.Name}}Request struct {
+	ID uuid.UUID `json:"id"`
+}
+
+// Response structures
+type {{.Entity.Name}}Response struct {
+	ID        uuid.UUID  `json:"id"`
+	{{- range .Entity.Fields}}
+	{{.Name}} {{.GoType}} `json:"{{.Name | snake}}"`
+	{{- end}}
+}
+
+// Convert domain model to response
+func toResponse(entity *domain.{{.Entity.Name}}) *{{.Entity.Name}}Response {
+	return &{{.Entity.Name}}Response{
+		ID:        entity.ID,
+		{{- range .Entity.Fields}}
+		{{.Name}}: entity.{{.Name}},
+		{{- end}}
+	}
+}
+
+// Convert domain models to response slice
+func toResponseSlice(entities []*domain.{{.Entity.Name}}) []*{{.Entity.Name}}Response {
+	result := make([]*{{.Entity.Name}}Response, len(entities))
+	for i, entity := range entities {
+		result[i] = toResponse(entity)
+	}
+	return result
+}
+
+// Delivery - структура для обработки HTTP запросов
+type {{.Entity.Name}}Delivery struct {
+	server  *echo.Echo
+	usecase usecase.{{.Entity.Name}}UseCaseInterface
+}
+
+// NewDelivery - конструктор Delivery
+func New{{.Entity.Name}}Delivery(server *echo.Echo, usecase usecase.{{.Entity.Name}}UseCaseInterface) *{{.Entity.Name}}Delivery {
+	d := &{{.Entity.Name}}Delivery{
+		server:  server,
+		usecase: usecase,
+	}
+	d.registerRoutes()
+	return d
+}
+
+// registerRoutes - регистрация HTTP маршрутов
+func (d *{{.Entity.Name}}Delivery) registerRoutes() {
+	d.server.POST("/{{.LowerEntityName}}", d.Create{{.Entity.Name}})
+	d.server.PUT("/{{.LowerEntityName}}", d.Update{{.Entity.Name}})
+	d.server.DELETE("/{{.LowerEntityName}}/:id", d.Delete{{.Entity.Name}})
+	d.server.GET("/{{.LowerEntityName}}/:id", d.Read{{.Entity.Name}})
+	d.server.GET("/{{.LowerEntityName}}", d.List{{.Entity.Name}})
+}
+
+// Create{{.Entity.Name}} - обработчик POST запроса для создания сущности
+// @Summary Create a new {{.Entity.Name}}
+// @Description Create a new {{.Entity.Name}} by providing the necessary data
+// @Accept json
+// @Produce json
+// @Param request body Create{{.Entity.Name}}Request true "Create {{.Entity.Name}}"
+// @Success 201 {object} Create{{.Entity.Name}}Request
+// @Failure 400 {object} echo.HTTPError
+// @Failure 500 {object} echo.HTTPError
+// @Router /{{.LowerEntityName}} [post]
+func (d *{{.Entity.Name}}Delivery) Create{{.Entity.Name}}(c echo.Context) error {
+	var req Create{{.Entity.Name}}Request
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
+	params := &usecase.Create{{.Entity.Name}}Params{
+		{{- range .Entity.Fields}}
+		{{.Name}}: req.{{.Name}},
+		{{- end}}
+	}
+
+	entity, err := d.usecase.Create{{.Entity.Name}}(context.Background(), params)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(http.StatusCreated, toResponse(entity))
+}
+
+// Update{{.Entity.Name}} - обработчик PUT запроса для обновления сущности
+// @Summary Update an existing {{.Entity.Name}}
+// @Description Update an existing {{.Entity.Name}} by providing the updated data
+// @Accept json
+// @Produce json
+// @Param request body Update{{.Entity.Name}}Request true "Update {{.Entity.Name}}"
+// @Success 200 {object} Update{{.Entity.Name}}Request
+// @Failure 400 {object} echo.HTTPError
+// @Failure 500 {object} echo.HTTPError
+// @Router /{{.LowerEntityName}} [put]
+func (d *{{.Entity.Name}}Delivery) Update{{.Entity.Name}}(c echo.Context) error {
+	var req Update{{.Entity.Name}}Request
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
+	params := &usecase.Update{{.Entity.Name}}Params{
+		ID:   req.ID,
+		{{- range .CommonFields}}
+		{{.Name}}: req.{{.Name}},
+		{{- end}}
+	}
+
+	entity, err := d.usecase.Update{{.Entity.Name}}(context.Background(), params)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(http.StatusOK, toResponse(entity))
+}
+
+// Read{{.Entity.Name}} - обработчик GET запроса для получения сущности по ID
+// @Summary Get an existing {{.Entity.Name}} by ID
+// @Description Get a single {{.Entity.Name}} by providing its ID
+// @Accept json
+// @Produce json
+// @Param id path int true "ID of the {{.Entity.Name}}"
+// @Success 200 {object} Read{{.Entity.Name}}Request
+// @Failure 400 {object} echo.HTTPError
+// @Failure 404 {object} echo.HTTPError
+// @Failure 500 {object} echo.HTTPError
+// @Router /{{.LowerEntityName}}/{id} [get]
+func (d *{{.Entity.Name}}Delivery) Read{{.Entity.Name}}(c echo.Context) error {
+	var req Read{{.Entity.Name}}Request
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
+	entity, err := d.usecase.Read{{.Entity.Name}}(context.Background(), req.ID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(http.StatusOK, toResponse(entity))
+}
+
+// List{{.Entity.Name}} - обработчик GET запроса для получения списка сущностей
+// @Summary Get a list of {{.Entity.Name}}s
+// @Description Get a list of {{.Entity.Name}}s based on provided filter (e.g., owner)
+// @Accept json
+// @Produce json
+// @Param request query List{{.Entity.Name}}Request true "Filter list"
+// @Success 200 {array} Read{{.Entity.Name}}Request
+// @Failure 400 {object} echo.HTTPError
+// @Failure 500 {object} echo.HTTPError
+// @Router /{{.LowerEntityName}} [get]
+func (d *{{.Entity.Name}}Delivery) List{{.Entity.Name}}(c echo.Context) error {
+	var req List{{.Entity.Name}}Request
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
+	entities, err := d.usecase.List{{.Entity.Name}}(context.Background(), req.{{.OwnerField.Name}})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(http.StatusOK, toResponseSlice(entities))
+}
+
+// Delete{{.Entity.Name}} - обработчик DELETE запроса для удаления сущности
+// @Summary Delete an existing {{.Entity.Name}}
+// @Description Delete an existing {{.Entity.Name}} by providing its ID
+// @Accept json
+// @Produce json
+// @Param id path int true "ID of the {{.Entity.Name}}"
+// @Success 204 {string} string "Successfully deleted"
+// @Failure 400 {object} echo.HTTPError
+// @Failure 404 {object} echo.HTTPError
+// @Failure 500 {object} echo.HTTPError
+// @Router /{{.LowerEntityName}}/{id} [delete]
+func (d *{{.Entity.Name}}Delivery) Delete{{.Entity.Name}}(c echo.Context) error {
+	var req Delete{{.Entity.Name}}Request
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
+	if err := d.usecase.Delete{{.Entity.Name}}(context.Background(), req.ID); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+
+	return c.NoContent(http.StatusNoContent)
+}

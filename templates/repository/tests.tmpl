@@ -1,0 +1,124 @@
+package repository
+
+import (
+    "context"
+    "time"
+    "testing"
+
+    "github.com/google/uuid"
+    "github.com/stretchr/testify/assert"
+    "github.com/stretchr/testify/require"
+
+    "{{.ModuleName}}/internal/{{.Entity.Name | lower}}/domain"
+    "github.com/jackc/pgx/v5/pgxpool"
+)
+
+var (
+    {{- range .Entity.Fields}}
+    test{{$.Entity.Name}}{{.Name}} = {{.DefaultGoValue}}
+    updated{{$.Entity.Name}}{{.Name}} = {{.DefaultGoValue}}
+    {{- end}}
+)
+
+func Test{{.Entity.Name}}Repository_Create{{.Entity.Name}}(t *testing.T) {
+    db := setupTestDB(t)
+    repo := New{{.Entity.Name}}Repository(db)
+
+    {{.Entity.Name | lower}} := &domain.{{.Entity.Name}}{
+        ID: uuid.New(),
+        {{- range .Entity.Fields}}
+        {{.Name}}: test{{$.Entity.Name}}{{.Name}},
+        {{- end}}
+    }
+
+    result, err := repo.Create{{.Entity.Name}}(context.Background(), {{.Entity.Name | lower}})
+    require.NoError(t, err)
+    assert.Equal(t, {{.Entity.Name | lower}}.ID, result.ID)
+    {{- range .Entity.Fields}}
+    assert.Equal(t, {{$.Entity.Name | lower}}.{{.Name}}, result.{{.Name}})
+    {{- end}}
+}
+
+func Test{{.Entity.Name}}Repository_Read{{.Entity.Name}}(t *testing.T) {
+    db := setupTestDB(t)
+    repo := New{{.Entity.Name}}Repository(db)
+
+    {{.Entity.Name | lower}} := &domain.{{.Entity.Name}}{
+        ID: uuid.New(),
+        {{- range .Entity.Fields}}
+        {{.Name}}: test{{$.Entity.Name}}{{.Name}},
+        {{- end}}
+    }
+    created, err := repo.Create{{.Entity.Name}}(context.Background(), {{.Entity.Name | lower}})
+    require.NoError(t, err)
+
+    result, err := repo.Read{{.Entity.Name}}(context.Background(), created.ID)
+    require.NoError(t, err)
+    assert.Equal(t, created.ID, result.ID)
+    {{- range .Entity.Fields}}
+    assert.Equal(t, created.{{.Name}}, result.{{.Name}})
+    {{- end}}
+}
+
+func Test{{.Entity.Name}}Repository_Update{{.Entity.Name}}(t *testing.T) {
+    db := setupTestDB(t)
+    repo := New{{.Entity.Name}}Repository(db)
+
+    {{.Entity.Name | lower}} := &domain.{{.Entity.Name}}{
+        ID: uuid.New(),
+        {{- range .Entity.Fields}}
+        {{.Name}}: test{{$.Entity.Name}}{{.Name}},
+        {{- end}}
+    }
+    created, err := repo.Create{{.Entity.Name}}(context.Background(), {{.Entity.Name | lower}})
+    require.NoError(t, err)
+
+    // Update fields with new test values
+    {{- range .Entity.Fields}}
+    created.{{.Name}} = updated{{$.Entity.Name}}{{.Name}}
+    {{- end}}
+    
+    updated, err := repo.Update{{.Entity.Name}}(context.Background(), created)
+    require.NoError(t, err)
+    {{- range .Entity.Fields}}
+    assert.Equal(t, updated{{$.Entity.Name}}{{.Name}}, updated.{{.Name}})
+    {{- end}}
+}
+
+func Test{{.Entity.Name}}Repository_Delete{{.Entity.Name}}(t *testing.T) {
+    db := setupTestDB(t)
+    repo := New{{.Entity.Name}}Repository(db)
+
+    {{.Entity.Name | lower}} := &domain.{{.Entity.Name}}{
+        ID: uuid.New(),
+        {{- range .Entity.Fields}}
+        {{.Name}}: test{{$.Entity.Name}}{{.Name}},
+        {{- end}}
+    }
+    created, err := repo.Create{{.Entity.Name}}(context.Background(), {{.Entity.Name | lower}})
+    require.NoError(t, err)
+
+    // Удаляем запись
+    err = repo.Delete{{.Entity.Name}}(context.Background(), created.ID)
+    require.NoError(t, err)
+
+    // Проверяем что запись удалена
+    _, err = repo.Read{{.Entity.Name}}(context.Background(), created.ID)
+    assert.Error(t, err)
+}
+
+// Вспомогательная функция для настройки тестовой БД
+func setupTestDB(t *testing.T) *pgxpool.Pool {
+    t.Helper()
+    
+    // Connect to test database
+    ctx := context.Background()
+    pool, err := pgxpool.New(ctx, "postgres://postgres:postgres@localhost:5432/test_db?sslmode=disable")
+    require.NoError(t, err)
+    
+    t.Cleanup(func() {
+        pool.Close()
+    })
+    
+    return pool
+} 

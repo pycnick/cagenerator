@@ -1,0 +1,125 @@
+package usecase
+
+import (
+    "context"
+    "testing"
+    "time"
+
+    "github.com/google/uuid"
+    "github.com/stretchr/testify/assert"
+    "github.com/stretchr/testify/require"
+    "go.uber.org/mock/gomock"
+
+    "{{.ModuleName}}/internal/{{.Entity.Name | lower}}/domain"
+    "{{.ModuleName}}/internal/{{.Entity.Name | lower}}/repository/mock"
+)
+
+var (
+    {{- range .Entity.Fields}}
+    test{{$.Entity.Name}}{{.Name}} = {{.DefaultGoValue}}
+    updated{{$.Entity.Name}}{{.Name}} = {{.DefaultGoValue}}
+    {{- end}}
+)
+
+func Test{{.Entity.Name}}UseCase_Create{{.Entity.Name}}(t *testing.T) {
+    ctrl := gomock.NewController(t)
+    defer ctrl.Finish()
+
+    mockRepo := mock.NewMock{{.Entity.Name}}RepositoryInterface(ctrl)
+    useCase := New{{.Entity.Name}}UseCase(mockRepo)
+
+    expected{{.Entity.Name}} := &domain.{{.Entity.Name}}{
+        ID: uuid.New(),
+        {{- range .Entity.Fields}}
+        {{.Name}}: test{{$.Entity.Name}}{{.Name}},
+        {{- end}}
+    }
+
+    params := &Create{{.Entity.Name}}Params{
+        {{- range .Entity.Fields}}
+        {{.Name}}: test{{$.Entity.Name}}{{.Name}},
+        {{- end}}
+    }
+
+    mockRepo.EXPECT().
+        Create{{.Entity.Name}}(gomock.Any(), gomock.Any()).
+        Return(expected{{.Entity.Name}}, nil)
+
+    result, err := useCase.Create{{.Entity.Name}}(context.Background(), params)
+    require.NoError(t, err)
+    assert.Equal(t, expected{{.Entity.Name}}, result)
+}
+
+func Test{{.Entity.Name}}UseCase_Read{{.Entity.Name}}(t *testing.T) {
+    ctrl := gomock.NewController(t)
+    defer ctrl.Finish()
+
+    mockRepo := mock.NewMock{{.Entity.Name}}RepositoryInterface(ctrl)
+    useCase := New{{.Entity.Name}}UseCase(mockRepo)
+
+    expected{{.Entity.Name}} := &domain.{{.Entity.Name}}{
+        ID: uuid.New(),
+        {{- range .Entity.Fields}}
+        {{.Name}}: test{{$.Entity.Name}}{{.Name}},
+        {{- end}}
+    }
+
+    mockRepo.EXPECT().
+        Read{{.Entity.Name}}(gomock.Any(), expected{{.Entity.Name}}.ID).
+        Return(expected{{.Entity.Name}}, nil)
+
+    result, err := useCase.Read{{.Entity.Name}}(context.Background(), expected{{.Entity.Name}}.ID)
+    require.NoError(t, err)
+    assert.Equal(t, expected{{.Entity.Name}}, result)
+}
+
+func Test{{.Entity.Name}}UseCase_Update{{.Entity.Name}}(t *testing.T) {
+    ctrl := gomock.NewController(t)
+    defer ctrl.Finish()
+
+    mockRepo := mock.NewMock{{.Entity.Name}}RepositoryInterface(ctrl)
+    useCase := New{{.Entity.Name}}UseCase(mockRepo)
+
+    expected{{.Entity.Name}} := &domain.{{.Entity.Name}}{
+        ID: uuid.New(),
+        {{- range .Entity.Fields}}
+        {{.Name}}: updated{{$.Entity.Name}}{{.Name}},
+        {{- end}}
+    }
+
+    params := &Update{{.Entity.Name}}Params{
+        ID: expected{{.Entity.Name}}.ID,
+        {{- range .CommonFields}}
+        {{.Name}}: updated{{$.Entity.Name}}{{.Name}},
+        {{- end}}
+    }
+
+    mockRepo.EXPECT().
+        Read{{.Entity.Name}}(gomock.Any(), expected{{.Entity.Name}}.ID).
+        Return(expected{{.Entity.Name}}, nil)
+
+    mockRepo.EXPECT().
+        Update{{.Entity.Name}}(gomock.Any(), gomock.Any()).
+        Return(expected{{.Entity.Name}}, nil)
+
+    result, err := useCase.Update{{.Entity.Name}}(context.Background(), params)
+    require.NoError(t, err)
+    assert.Equal(t, expected{{.Entity.Name}}, result)
+}
+
+func Test{{.Entity.Name}}UseCase_Delete{{.Entity.Name}}(t *testing.T) {
+    ctrl := gomock.NewController(t)
+    defer ctrl.Finish()
+
+    mockRepo := mock.NewMock{{.Entity.Name}}RepositoryInterface(ctrl)
+    useCase := New{{.Entity.Name}}UseCase(mockRepo)
+
+    id := uuid.New()
+
+    mockRepo.EXPECT().
+        Delete{{.Entity.Name}}(gomock.Any(), id).
+        Return(nil)
+
+    err := useCase.Delete{{.Entity.Name}}(context.Background(), id)
+    require.NoError(t, err)
+} 

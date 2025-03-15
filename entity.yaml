@@ -1,0 +1,27 @@
+module_name: "myproject"
+entities:
+  - name: "Invoice"
+    fields:
+      - name: OrgId
+        type: uuid
+        owner: true
+      - name: SubscriptionId
+        type: uuid
+
+      - name: Status
+        type: string
+
+      - name: CreatedAt
+        type: time
+
+  - name: "Subscription"
+    fields:
+      - name: OrgId
+        type: uuid
+        owner: true
+
+      - name: Status
+        type: string
+
+      - name: CreatedAt
+        type: time

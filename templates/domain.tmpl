@@ -1,0 +1,34 @@
+package domain
+
+import (
+	"fmt"
+	"time"
+
+	"github.com/google/uuid"
+)
+
+var (
+	ErrNotFound = fmt.Errorf("{{.Entity.Name}} not found")
+)
+
+// {{.Entity.Name}} - структура сущности
+type {{.Entity.Name}} struct {
+	ID uuid.UUID `json:"id"`
+	{{- range .Entity.Fields}}
+	{{.Name}} {{.GoType}} `json:"{{.Name}}"`
+	{{- end}}
+}
+
+// New{{.Entity.Name}} - конструктор для создания новой сущности
+func New{{.Entity.Name}}(
+{{- range .Entity.Fields}}
+	{{.Name}} {{.GoType}},
+{{- end}}
+) *{{.Entity.Name}} {
+	return &{{.Entity.Name}}{
+	ID: uuid.New(),
+{{- range .Entity.Fields}}
+	{{.Name}}: {{.Name}},
+{{- end}}
+	}
+}

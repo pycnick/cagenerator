@@ -1,0 +1,161 @@
+package repository
+
+import (
+	"context"
+	"errors"
+	"fmt"
+
+	"github.com/Masterminds/squirrel"
+	"github.com/georgysavva/scany/v2/pgxscan"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"{{.ModuleName}}/internal/{{.LowerEntityName}}/domain"
+)
+
+//go:generate go run go.uber.org/mock/mockgen -source=./repository.go -destination=./mock/repository.go -package=mock {{.Entity.Name}}RepositoryInterface
+type {{.Entity.Name}}RepositoryInterface interface {
+	Create{{.Entity.Name}}(ctx context.Context, {{$.LowerEntityName}} *domain.{{.Entity.Name}}) (*domain.{{.Entity.Name}}, error)
+	Read{{.Entity.Name}}(ctx context.Context, id uuid.UUID) (*domain.{{.Entity.Name}}, error)
+	List{{.Entity.Name}}(ctx context.Context, {{.OwnerField.Name}} {{.OwnerField.GoType}}) ([]*domain.{{.Entity.Name}}, error)
+	Update{{.Entity.Name}}(ctx context.Context, {{.LowerEntityName}} *domain.{{.Entity.Name}}) (*domain.{{.Entity.Name}}, error)
+	Delete{{.Entity.Name}}(ctx context.Context, id uuid.UUID) error
+}
+
+type {{.Entity.Name}}Repository struct {
+	db *pgxpool.Pool
+}
+
+func New{{.Entity.Name}}Repository(db *pgxpool.Pool) *{{.Entity.Name}}Repository {
+	return &{{.Entity.Name}}Repository{db: db}
+}
+
+func (r *{{.Entity.Name}}Repository) Create{{.Entity.Name}}(ctx context.Context, {{$.LowerEntityName}} *domain.{{.Entity.Name}}) (*domain.{{.Entity.Name}}, error) {
+	// Пример для вставки в базу данных
+	query, args, err := squirrel.Insert("{{.LowerEntityName}}").
+		Columns(
+		{{- range .Entity.Fields}}
+			"{{.Name}}",
+		{{- end}}
+		).
+		Values(
+		{{- range .Entity.Fields}}
+			{{$.LowerEntityName}}.{{.Name}},
+		{{- end}}
+		).
+		ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("error building query: %w", err)
+	}
+
+	_, err = r.db.Exec(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("error querying database: %w", err)
+	}
+
+	return {{$.LowerEntityName}}, nil
+}
+
+func (r *{{.Entity.Name}}Repository) Read{{.Entity.Name}}(ctx context.Context, id uuid.UUID) (*domain.{{.Entity.Name}}, error) {
+	var {{$.LowerEntityName}} domain.{{.Entity.Name}}
+
+	query, args, err := squirrel.Select(
+		{{- range .Entity.Fields}}
+			"{{.Name}}",
+		{{- end}}
+		).
+		From("{{.LowerEntityName}}").
+		Where(squirrel.Eq{
+			"id": id,
+		}).
+		ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("error building query: %w", err)
+	}
+
+	err = pgxscan.Get(ctx, r.db, &{{$.LowerEntityName}}, query, args...)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrNotFound
+		}
+		return nil, fmt.Errorf("error querying database: %w", err)
+	}
+
+	return &{{$.LowerEntityName}}, nil
+}
+
+func (r *{{.Entity.Name}}Repository) List{{.Entity.Name}}(ctx context.Context, {{.OwnerField.Name}} {{.OwnerField.GoType}}) ([]*domain.{{.Entity.Name}}, error) {
+	query, args, err := squirrel.Select(
+		{{- range .Entity.Fields}}
+			"{{.Name}}",
+		{{- end}}
+		).
+		From("{{.LowerEntityName}}").
+		Where(squirrel.Eq{
+			"{{.OwnerField.Name}}": {{.OwnerField.Name}},
+		}).
+		ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("error building query: %w", err)
+	}
+
+	var {{$.LowerEntityName}}s []*domain.{{.Entity.Name}}
+	err = pgxscan.Select(ctx, r.db, &{{$.LowerEntityName}}s, query, args...)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrNotFound
+		}
+
+		return nil, fmt.Errorf("error querying database: %w", err)
+	}
+
+	return {{$.LowerEntityName}}s, nil
+}
+
+func (r *{{.Entity.Name}}Repository) Update{{.Entity.Name}}(ctx context.Context, {{.LowerEntityName}} *domain.{{.Entity.Name}}) (*domain.{{.Entity.Name}}, error) {
+	query, args, err := squirrel.Update("{{.LowerEntityName}}").
+		SetMap(map[string]interface{}{
+{{- range .Entity.Fields}}
+			"{{.Name}}": {{$.LowerEntityName}}.{{.Name}},
+{{- end}}
+		}).
+		Where(squirrel.Eq{
+			"id": {{.LowerEntityName}}.ID,
+		}).
+		ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("error building query: %w", err)
+	}
+
+	_, err = r.db.Exec(ctx, query, args...)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrNotFound
+		}
+
+		return nil, fmt.Errorf("error querying database: %w", err)
+	}
+
+	return {{.LowerEntityName}}, nil
+}
+
+func (r *{{.Entity.Name}}Repository) Delete{{.Entity.Name}}(ctx context.Context, id uuid.UUID) error {
+	query, args, err := squirrel.Delete("{{.LowerEntityName}}").
+		Where(squirrel.Eq{
+			"id": id,
+		}).
+		ToSql()
+	if err != nil {
+		return fmt.Errorf("error building query: %w", err)
+	}
+
+	_, err = r.db.Exec(ctx, query, args...)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.ErrNotFound
+		}
+
+		return fmt.Errorf("error querying database: %w", err)
+	}
+	return err
+}

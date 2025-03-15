@@ -1,0 +1,78 @@
+package usecase
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/google/uuid"
+	"{{.ModuleName}}/internal/{{.LowerEntityName}}/domain"
+	"{{.ModuleName}}/internal/{{.LowerEntityName}}/repository"
+)
+
+var ErrNotFound = fmt.Errorf("entity not found")
+
+//go:generate go run go.uber.org/mock/mockgen -source=./usecase.go -destination=./mock/usecase.go -package=mock {{.Entity.Name}}UseCaseInterface
+type {{.Entity.Name}}UseCaseInterface interface {
+	Create{{.Entity.Name}}(ctx context.Context, params *Create{{.Entity.Name}}Params) (*domain.{{.Entity.Name}}, error)
+	Read{{.Entity.Name}}(ctx context.Context, id uuid.UUID) (*domain.{{.Entity.Name}}, error)
+	List{{.Entity.Name}}(ctx context.Context, {{.OwnerField.Name}} {{.OwnerField.GoType}}) ([]*domain.{{.Entity.Name}}, error)
+	Update{{.Entity.Name}}(ctx context.Context, params *Update{{.Entity.Name}}Params) (*domain.{{.Entity.Name}}, error)
+	Delete{{.Entity.Name}}(ctx context.Context, id uuid.UUID) error
+}
+
+type {{.Entity.Name}}UseCase struct {
+	repo repository.{{.Entity.Name}}RepositoryInterface
+}
+
+func New{{.Entity.Name}}UseCase(repo repository.{{.Entity.Name}}RepositoryInterface) *{{.Entity.Name}}UseCase {
+	return &{{.Entity.Name}}UseCase{repo: repo}
+}
+
+type Create{{.Entity.Name}}Params struct {
+{{- range .Entity.Fields}}
+	{{.Name}} {{.GoType}}
+{{- end}}
+}
+
+func (uc *{{.Entity.Name}}UseCase) Create{{.Entity.Name}}(ctx context.Context, params *Create{{.Entity.Name}}Params) (*domain.{{.Entity.Name}}, error) {
+	{{.LowerEntityName}} := domain.New{{.Entity.Name}}(
+	{{- range .Entity.Fields}}
+		params.{{.Name}},
+	{{- end}}
+	)
+
+	return uc.repo.Create{{.Entity.Name}}(ctx, {{.LowerEntityName}})
+}
+
+func (uc *{{.Entity.Name}}UseCase) Read{{.Entity.Name}}(ctx context.Context, id uuid.UUID) (*domain.{{.Entity.Name}}, error) {
+	return uc.repo.Read{{.Entity.Name}}(ctx, id)
+}
+
+func (uc *{{.Entity.Name}}UseCase) List{{.Entity.Name}}(ctx context.Context, {{.OwnerField.Name}} {{.OwnerField.GoType}}) ([]*domain.{{.Entity.Name}}, error) {
+	return uc.repo.List{{.Entity.Name}}(ctx, {{.OwnerField.Name}})
+}
+
+type Update{{.Entity.Name}}Params struct {
+	ID uuid.UUID
+{{- range .CommonFields}}
+	{{.Name}} {{.GoType}}
+{{- end}}
+}
+
+func (uc *{{.Entity.Name}}UseCase) Update{{.Entity.Name}}(ctx context.Context, params *Update{{.Entity.Name}}Params) (*domain.{{.Entity.Name}}, error) {
+	{{.LowerEntityName}}, err := uc.Read{{.Entity.Name}}(ctx, params.ID)
+	if err != nil {
+		return nil, err
+	}
+
+{{- range .CommonFields}}
+	{{$.LowerEntityName}}.{{.Name}} = params.{{.Name}}
+{{- end}}
+
+	return uc.repo.Update{{.Entity.Name}}(ctx, {{.LowerEntityName}})
+}
+
+func (uc *{{.Entity.Name}}UseCase) Delete{{.Entity.Name}}(ctx context.Context, id uuid.UUID) error {
+	return uc.repo.Delete{{.Entity.Name}}(ctx, id)
+}
