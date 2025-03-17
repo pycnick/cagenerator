@@ -13,6 +13,29 @@ builds:
     goarch:
       - amd64
       - arm64
+    binary: cagenerator
+    id: "cagenerator"
+    mod_timestamp: '{{ .CommitTimestamp }}'
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+
+# Добавляем специальную конфигурацию для go install
+nfpms:
+  - id: cagenerator
+    package_name: cagenerator
+    file_name_template: "{{ .ProjectName }}"
+    builds:
+      - cagenerator
+
+gomod:
+  proxy: true
+  mod: mod
+  gobinary: go
+
+# Указываем Go модуль для установки
+project_name: cagenerator
 
 archives:
   - format: tar.gz
