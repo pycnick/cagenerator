@@ -23,9 +23,6 @@ gomod:
   mod: mod
   gobinary: go
 
-# Указываем Go модуль для установки
-project_name: cagenerator
-
 archives:
   - format: tar.gz
     name_template: >-
