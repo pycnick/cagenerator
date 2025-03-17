@@ -3,27 +3,29 @@ before:
     - go mod tidy
 
 builds:
-  - main: ./main.go
+  - id: cagenerator
+    binary: cagenerator
+    main: .
     env:
       - CGO_ENABLED=0
+      - GO111MODULE=on
     goos:
       - linux
+      - windows
       - darwin
     goarch:
       - amd64
       - arm64
-    binary: cagenerator
-    id: "cagenerator"
     mod_timestamp: '{{ .CommitTimestamp }}'
     flags:
       - -trimpath
     ldflags:
       - -s -w
-    dir: .
 
 # Добавляем специальную конфигурацию для go install
 nfpms:
   - id: cagenerator
+    maintainer: pycnick
     package_name: cagenerator
     file_name_template: "{{ .ProjectName }}"
     builds:
