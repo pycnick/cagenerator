@@ -22,15 +22,6 @@ builds:
     ldflags:
       - -s -w
 
-# Добавляем специальную конфигурацию для go install
-nfpms:
-  - id: cagenerator
-    maintainer: pycnick
-    package_name: cagenerator
-    file_name_template: "{{ .ProjectName }}"
-    builds:
-      - cagenerator
-
 gomod:
   proxy: true
   mod: mod
